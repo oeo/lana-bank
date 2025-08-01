@@ -45,7 +45,6 @@ import {
   GetCommitteeDetailsQuery,
   TermsTemplateQuery,
   GetDisbursalDetailsQuery,
-  KycLevel,
 } from "@/lib/graphql/generated"
 
 export const PATH_CONFIGS = {
@@ -139,12 +138,6 @@ const CreateButton = () => {
   }
 
   const isButtonDisabled = () => {
-    if (
-      PATH_CONFIGS.CUSTOMER_DETAILS.test(pathName) &&
-      process.env.NODE_ENV !== "development"
-    ) {
-      return !customer || customer.level === KycLevel.NotKyced
-    }
     if (PATH_CONFIGS.CREDIT_FACILITY_DETAILS.test(pathName)) {
       return !facility || facility.status !== CreditFacilityStatus.Active
     }
