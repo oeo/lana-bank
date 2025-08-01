@@ -159,6 +159,9 @@
             "string",
             "number"
           ]
+        },
+        "single_disbursal_at_activation": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -170,7 +173,8 @@
         "one_time_fee_rate",
         "liquidation_cvl",
         "margin_call_cvl",
-        "initial_cvl"
+        "initial_cvl",
+        "single_disbursal_at_activation"
       ],
       "type": "object"
     }

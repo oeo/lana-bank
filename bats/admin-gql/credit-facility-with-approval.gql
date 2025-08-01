@@ -1,0 +1,7 @@
+query creditFacilityWithApproval($id: UUID!) {
+  creditFacility(id: $id) {
+    creditFacilityId
+    status
+    approvalProcessId
+  }
+}

@@ -116,11 +116,11 @@ ymd() {
       id: $customerId
     }'
   )
+
   exec_admin_graphql 'customer' "$variables"
 
   deposit_account_id=$(graphql_output '.data.customer.depositAccount.depositAccountId')
   [[ "$deposit_account_id" != "null" ]] || exit 1
-
 
   facility=100000
   variables=$(
@@ -275,9 +275,9 @@ ymd() {
   )
   exec_admin_graphql 'credit-facility-partial-payment' "$variables"
   updated_balance=$(graphql_output '.data.creditFacilityPartialPayment.creditFacility.balance')
-
   updated_interest=$(echo $updated_balance | jq -r '.interest.total.usdBalance')
   [[ "$interest" -eq "$updated_interest" ]] || exit 1
+
   updated_disbursed=$(echo $updated_balance | jq -r '.disbursed.total.usdBalance')
   [[ "$disbursed" -eq "$updated_disbursed" ]] || exit 1
 
@@ -290,4 +290,91 @@ ymd() {
   retry 10 1 wait_for_dashboard_payment "$disbursed_before" "$disbursed_payment"
 
   # assert_accounts_balanced
+}
+
+@test "credit-facility: single disbursal at activation" {
+  # Create customer and get deposit account
+  customer_id=$(create_customer)
+
+  retry 30 1 wait_for_checking_account "$customer_id"
+  
+  exec_admin_graphql 'customer' "$(jq -n --arg customerId "$customer_id" '{ id: $customerId }')"
+  deposit_account_id=$(graphql_output '.data.customer.depositAccount.depositAccountId')
+
+  # Create facility with single disbursal at activation
+  facility=200000
+  variables=$(
+    jq -n \
+    --arg customerId "$customer_id" \
+    --arg disbursal_credit_account_id "$deposit_account_id" \
+    --argjson facility "$facility" \
+    '{
+      input: {
+        customerId: $customerId,
+        facility: $facility,
+        disbursalCreditAccountId: $disbursal_credit_account_id,
+        terms: {
+          annualRate: "12",
+          accrualCycleInterval: "END_OF_MONTH",
+          accrualInterval: "END_OF_DAY",
+          oneTimeFeeRate: "5",
+          duration: { period: "MONTHS", units: 3 },
+          interestDueDurationFromAccrual: { period: "DAYS", units: 0 },
+          obligationOverdueDurationFromDue: { period: "DAYS", units: 50 },
+          obligationLiquidationDurationFromDue: { period: "DAYS", units: 360 },
+          liquidationCvl: "105",
+          marginCallCvl: "125",
+          initialCvl: "140",
+          singleDisbursalAtActivation: true
+        }
+      }
+    }'
+  )
+  exec_admin_graphql 'credit-facility-create' "$variables"
+  credit_facility_id=$(graphql_output '.data.creditFacilityCreate.creditFacility.creditFacilityId')
+
+  # Get and approve facility
+  exec_admin_graphql 'credit-facility-with-approval' "$(jq -n --arg id "$credit_facility_id" '{ id: $id }')"
+  approval_process_id=$(graphql_output '.data.creditFacility.approvalProcessId')
+  
+  exec_admin_graphql 'approval-process-approve' "$(jq -n --arg processId "$approval_process_id" '{ input: { processId: $processId } }')"
+
+  # Activate with collateral
+  variables=$(
+    jq -n \
+    --arg credit_facility_id "$credit_facility_id" \
+    --arg effective "$(naive_now)" \
+    '{ input: { creditFacilityId: $credit_facility_id, collateral: 280000, effective: $effective } }'
+  )
+  exec_admin_graphql 'credit-facility-collateral-update' "$variables"
+  retry 60 wait_for_active "$credit_facility_id"
+
+  # Verify single disbursal was created for full amount
+  exec_admin_graphql 'find-credit-facility' "$(
+    jq -n \
+      --arg creditFacilityId "$credit_facility_id" \
+      '{ id: $creditFacilityId }'
+  )"
+
+  disbursals=$(graphql_output '.data.creditFacility.disbursals')
+  [[ $(echo "$disbursals" | jq 'length') == "1" ]] || exit 1
+  [[ $(echo "$disbursals" | jq -r '.[0].amount') == "$facility" ]] || exit 1
+
+  # Verify no more disbursals allowed
+  variables=$(
+    jq -n \
+      --arg creditFacilityId "$credit_facility_id" \
+      '{ input: { creditFacilityId: $creditFacilityId, amount: 10000 } }'
+  )
+  exec_admin_graphql 'credit-facility-disbursal-initiate' "$variables" || true
+  [[ $(graphql_output '.errors[0].message') =~ "SingleDisbursalAlreadyMade" ]] || exit 1
+
+  # Verify no more disbursals allowed
+  variables=$(
+    jq -n \
+      --arg creditFacilityId "$credit_facility_id" \
+      '{ input: { creditFacilityId: $creditFacilityId, amount: 10000 } }'
+  )
+  exec_admin_graphql 'credit-facility-disbursal-initiate' "$variables" || true
+  [[ $(graphql_output '.errors[0].message') =~ "SingleDisbursalAlreadyMade" ]] || exit 1
 }

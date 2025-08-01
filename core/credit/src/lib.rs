@@ -51,7 +51,7 @@ pub use collateral::*;
 pub use config::*;
 pub use credit_facility::error::CreditFacilityError;
 pub use credit_facility::*;
-pub use disbursal::{disbursal_cursor::*, *};
+pub use disbursal::{disbursal_cursor::*, DisbursalsSortBy, *};
 use error::*;
 pub use event::*;
 use for_subject::CreditFacilitiesForSubject;
@@ -580,6 +580,26 @@ where
         if !facility.is_activated() {
             return Err(CreditFacilityError::NotActivatedYet.into());
         }
+        
+        // Check if single disbursal at activation is enabled and if a disbursal has already been made
+        if facility.terms.single_disbursal_at_activation {
+            let query = es_entity::PaginatedQueryArgs {
+                first: 1,
+                after: None,
+            };
+            let disbursals = self.disbursals.list_for_facility_without_audit(
+                credit_facility_id,
+                query,
+                es_entity::Sort {
+                    by: DisbursalsSortBy::default(),
+                    direction: es_entity::ListDirection::default(),
+                },
+            ).await?;
+            if !disbursals.entities.is_empty() {
+                return Err(CreditFacilityError::SingleDisbursalAlreadyMade.into());
+            }
+        }
+        
         let now = crate::time::now();
         if !facility.check_disbursal_date(now) {
             return Err(CreditFacilityError::DisbursalPastMaturityDate.into());

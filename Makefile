@@ -217,5 +217,3 @@ get-customer-login-code:
 
 get-superadmin-login-code:
 	@$${ENGINE_DEFAULT:-docker} exec lana-bank-kratos-admin-pg-1 psql -U dbuser -d default -t -c "SELECT body FROM courier_messages WHERE recipient='admin@galoy.io' ORDER BY created_at DESC LIMIT 1;" | grep -Eo '[0-9]{6}' | head -n1
-
-compile-graph: sdl-rust-cargo

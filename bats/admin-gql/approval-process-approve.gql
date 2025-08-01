@@ -1,0 +1,8 @@
+mutation approvalProcessApprove($input: ApprovalProcessApproveInput!) {
+  approvalProcessApprove(input: $input) {
+    approvalProcess {
+      approvalProcessId
+      status
+    }
+  }
+}

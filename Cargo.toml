@@ -115,4 +115,4 @@ markdown2pdf = { version = "0.1.6", features = ["rustls-tls"], default-features 
 bytes = "1.10"
 
 [profile.release]
-lto = true 
+lto = true

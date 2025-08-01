@@ -1501,6 +1501,7 @@ impl Mutation {
             .liquidation_cvl(terms.liquidation_cvl)
             .margin_call_cvl(terms.margin_call_cvl)
             .initial_cvl(terms.initial_cvl)
+            .single_disbursal_at_activation(terms.single_disbursal_at_activation)
             .build()?;
 
         exec_mutation!(

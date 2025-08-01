@@ -16,6 +16,7 @@ pub struct TermValues {
     liquidation_cvl: CVLPct,
     margin_call_cvl: CVLPct,
     initial_cvl: CVLPct,
+    single_disbursal_at_activation: bool,
 }
 
 impl From<DomainTermValues> for TermValues {
@@ -29,6 +30,7 @@ impl From<DomainTermValues> for TermValues {
             liquidation_cvl: values.liquidation_cvl,
             margin_call_cvl: values.margin_call_cvl,
             initial_cvl: values.initial_cvl,
+            single_disbursal_at_activation: values.single_disbursal_at_activation,
         }
     }
 }
@@ -46,6 +48,8 @@ pub struct TermsInput {
     pub obligation_liquidation_duration_from_due: DurationInput,
     pub margin_call_cvl: CVLPct,
     pub initial_cvl: CVLPct,
+    #[graphql(default = false)]
+    pub single_disbursal_at_activation: bool,
 }
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]

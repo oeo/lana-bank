@@ -306,6 +306,8 @@ impl CreditFacility {
             return Err(CreditFacilityError::Denied);
         }
 
+        // TODO: This is too much of a generic of a method name, should be more specific
+        //       if it is only returning a boolean, i.e. `is_below_margin_limit()`
         if !self.terms.is_approval_allowed(balances, price) {
             return Err(CreditFacilityError::BelowMarginLimit);
         }
@@ -752,6 +754,8 @@ impl IntoEvents<CreditFacilityEvent> for NewCreditFacility {
 #[cfg(test)]
 mod test {
     use audit::{AuditEntryId, AuditInfo};
+    use governance::ApprovalProcessId;
+    use public_id::PublicId;
     use rust_decimal_macros::dec;
 
     use crate::{
@@ -1023,6 +1027,44 @@ mod test {
         let credit_facility = facility_from(initial_events());
         let expected_fee = default_terms().one_time_fee_rate.apply(default_facility());
         assert_eq!(credit_facility.structuring_fee(), expected_fee);
+    }
+
+    #[test]
+    fn single_disbursal_at_activation_field() {
+        // Test with single_disbursal_at_activation = false
+        let facility_without_single_disbursal = facility_from(initial_events());
+        assert!(!facility_without_single_disbursal.terms.single_disbursal_at_activation);
+        
+        // Test with single_disbursal_at_activation = true
+        let events = vec![CreditFacilityEvent::Initialized {
+            id: CreditFacilityId::new(),
+            ledger_tx_id: LedgerTxId::new(),
+            approval_process_id: ApprovalProcessId::new(),
+            collateral_id: CollateralId::new(),
+            customer_id: CustomerId::new(),
+            terms: TermValues::builder()
+                .annual_rate(dec!(12))
+                .duration(FacilityDuration::Months(3))
+                .interest_due_duration_from_accrual(ObligationDuration::Days(0))
+                .obligation_overdue_duration_from_due(None)
+                .obligation_liquidation_duration_from_due(None)
+                .accrual_cycle_interval(InterestInterval::EndOfMonth)
+                .accrual_interval(InterestInterval::EndOfDay)
+                .one_time_fee_rate(OneTimeFeeRatePct::new(5))
+                .liquidation_cvl(dec!(105))
+                .margin_call_cvl(dec!(125))
+                .initial_cvl(dec!(140))
+                .single_disbursal_at_activation(true)  // Enable single disbursal
+                .build()
+                .expect("should build a valid term"),
+            amount: default_facility(),
+            account_ids: CreditFacilityAccountIds::new(),
+            disbursal_credit_account_id: CalaAccountId::new(),
+            public_id: PublicId::new(format!("test-single-disbursal-{}", uuid::Uuid::new_v4())),
+            audit_info: dummy_audit_info(),
+        }];
+        let facility_with_single_disbursal = facility_from(events);
+        assert!(facility_with_single_disbursal.terms.single_disbursal_at_activation);
     }
 
     mod activate {

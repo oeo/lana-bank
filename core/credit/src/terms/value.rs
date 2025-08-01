@@ -250,6 +250,8 @@ pub struct TermValues {
     pub margin_call_cvl: CVLPct,
     #[builder(setter(into))]
     pub initial_cvl: CVLPct,
+    #[builder(setter(into), default = "false")]
+    pub single_disbursal_at_activation: bool,
 }
 
 impl TermValues {
@@ -413,6 +415,7 @@ mod test {
             .liquidation_cvl(dec!(105))
             .margin_call_cvl(dec!(125))
             .initial_cvl(dec!(140))
+            .single_disbursal_at_activation(false)
             .build()
             .expect("should build a valid term")
     }
@@ -427,6 +430,7 @@ mod test {
             .liquidation_cvl(dec!(105))
             .margin_call_cvl(dec!(150))
             .initial_cvl(dec!(140))
+            .single_disbursal_at_activation(false)
             .build();
 
         match result.unwrap_err() {
@@ -448,6 +452,7 @@ mod test {
             .liquidation_cvl(dec!(130))
             .margin_call_cvl(dec!(125))
             .initial_cvl(dec!(140))
+            .single_disbursal_at_activation(false)
             .build();
 
         match result.unwrap_err() {
@@ -469,6 +474,7 @@ mod test {
             .liquidation_cvl(dec!(125))
             .margin_call_cvl(dec!(125))
             .initial_cvl(dec!(140))
+            .single_disbursal_at_activation(false)
             .build();
 
         match result.unwrap_err() {
@@ -624,6 +630,48 @@ mod test {
         assert_eq!(fee, UsdCents::from(51));
     }
 
+    #[test]
+    fn single_disbursal_at_activation_defaults_to_false() {
+        let terms = TermValues::builder()
+            .annual_rate(AnnualRatePct(dec!(12)))
+            .duration(FacilityDuration::Months(3))
+            .interest_due_duration_from_accrual(ObligationDuration::Days(0))
+            .obligation_overdue_duration_from_due(None)
+            .obligation_liquidation_duration_from_due(None)
+            .accrual_cycle_interval(InterestInterval::EndOfMonth)
+            .accrual_interval(InterestInterval::EndOfDay)
+            .one_time_fee_rate(OneTimeFeeRatePct(dec!(1)))
+            .liquidation_cvl(dec!(105))
+            .margin_call_cvl(dec!(125))
+            .initial_cvl(dec!(140))
+            // Not setting single_disbursal_at_activation explicitly
+            .build()
+            .expect("should build a valid term");
+
+        assert!(!terms.single_disbursal_at_activation);
+    }
+
+    #[test]
+    fn single_disbursal_at_activation_can_be_set_to_true() {
+        let terms = TermValues::builder()
+            .annual_rate(AnnualRatePct(dec!(12)))
+            .duration(FacilityDuration::Months(3))
+            .interest_due_duration_from_accrual(ObligationDuration::Days(0))
+            .obligation_overdue_duration_from_due(None)
+            .obligation_liquidation_duration_from_due(None)
+            .accrual_cycle_interval(InterestInterval::EndOfMonth)
+            .accrual_interval(InterestInterval::EndOfDay)
+            .one_time_fee_rate(OneTimeFeeRatePct(dec!(1)))
+            .liquidation_cvl(dec!(105))
+            .margin_call_cvl(dec!(125))
+            .initial_cvl(dec!(140))
+            .single_disbursal_at_activation(true)
+            .build()
+            .expect("should build a valid term");
+
+        assert!(terms.single_disbursal_at_activation);
+    }
+
     fn default_terms() -> TermValues {
         TermValues::builder()
             .annual_rate(dec!(12))
@@ -637,6 +685,7 @@ mod test {
             .liquidation_cvl(dec!(105))
             .margin_call_cvl(dec!(125))
             .initial_cvl(dec!(140))
+            .single_disbursal_at_activation(false)
             .build()
             .expect("should build a valid term")
     }

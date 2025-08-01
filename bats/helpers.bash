@@ -147,6 +147,7 @@ login_superadmin() {
   local email="admin@galoy.io"
 
   # Wait for Kratos user to be created before attempting login
+  echo "--- Waiting for Kratos user to be created ---"
   wait_for_kratos_user_ready
 
   echo "--- Attempting superadmin login ---"
@@ -417,6 +418,6 @@ wait_for_checking_account() {
 
   echo "checking | $i. $(graphql_output)" >> $RUN_LOG_FILE
   deposit_account_id=$(graphql_output '.data.customer.depositAccount.depositAccountId')
-  [[ "$deposit_account_id" != "null" ]] || exit 1
 
+  [[ "$deposit_account_id" != "null" ]] || exit 1
 }
