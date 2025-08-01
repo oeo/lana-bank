@@ -158,7 +158,8 @@ where
         }
 
         Ok(JobCompletion::RescheduleIn(std::time::Duration::from_secs(
-            60,
+            // 60
+            600_000
         )))
     }
 }

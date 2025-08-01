@@ -147,7 +147,7 @@ test-cypress-in-ci:
 	@echo "--- Service Health Checks ---"
 	@echo "Core server status:"
 	@curl -s -o /dev/null -w "Response code: %{response_code}\n" http://localhost:5253/health || echo "Core server health check failed"
-	@echo "GraphQL endpoint status:" 
+	@echo "GraphQL endpoint status:"
 	@curl -s -o /dev/null -w "Response code: %{response_code}\n" http://localhost:5253/graphql || echo "GraphQL endpoint check failed"
 	@echo "Admin panel status:"
 	@curl -s -o /dev/null -w "Response code: %{response_code}\n" http://localhost:3001 || echo "Admin panel direct check failed"
@@ -217,3 +217,5 @@ get-customer-login-code:
 
 get-superadmin-login-code:
 	@$${ENGINE_DEFAULT:-docker} exec lana-bank-kratos-admin-pg-1 psql -U dbuser -d default -t -c "SELECT body FROM courier_messages WHERE recipient='admin@galoy.io' ORDER BY created_at DESC LIMIT 1;" | grep -Eo '[0-9]{6}' | head -n1
+
+compile-graph: sdl-rust-cargo

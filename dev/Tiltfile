@@ -3,7 +3,8 @@ docker_groups = {
     "auth": ["kratos-admin", "kratos-admin-pg", "kratos-customer", "kratos-customer-pg", "oathkeeper"],
     "otel": ["otel-agent"],
     "core": ["core-pg"],
-    "airflow": ["airflow-scheduler", "airflow-webserver"]
+    "airflow": ["airflow-scheduler", "airflow-webserver", "airflow-pg"],
+    "email": ["mailcrab"]
 }
 
 for service, deps in docker_groups.items():
@@ -22,7 +23,7 @@ local_resource(
     serve_cmd = "cd .. && make setup-db run-server",
     serve_env = serve_env_core,
     readiness_probe = probe(
-        initial_delay_secs = 3,
+        initial_delay_secs = 10,
         period_secs = 1,
         http_get = http_get_action(
             path = "/graphql",
@@ -46,7 +47,7 @@ local_resource(
     },
     serve_cmd = "cd .. && make start-admin",
     readiness_probe = probe(
-        initial_delay_secs = 3,
+        initial_delay_secs = 10,
         period_secs = 1,
         http_get = http_get_action(
             path = "/",
@@ -67,7 +68,7 @@ local_resource(
     },
     serve_cmd = "cd .. && make start-customer-portal",
     readiness_probe = probe(
-        initial_delay_secs = 3,
+        initial_delay_secs = 10,
         period_secs = 1,
         http_get = http_get_action(
             path = "/",

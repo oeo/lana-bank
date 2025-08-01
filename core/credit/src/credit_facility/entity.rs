@@ -312,7 +312,9 @@ impl CreditFacility {
 
         self.activated_at = Some(activated_at);
         self.matures_at = Some(self.terms.duration.maturity_date(activated_at));
+
         let tx_id = LedgerTxId::new();
+
         self.events.push(CreditFacilityEvent::Activated {
             ledger_tx_id: tx_id,
             activated_at,
@@ -323,6 +325,10 @@ impl CreditFacility {
             .start_interest_accrual_cycle(audit_info)
             .expect("first accrual")
             .expect("first accrual");
+
+        // Create the activation event
+        println!("Activating credit facility: {}", self.id);
+
         let activation = CreditFacilityActivation {
             tx_id,
             tx_ref: format!("{}-activate", self.id),
