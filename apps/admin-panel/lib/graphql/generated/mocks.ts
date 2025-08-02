@@ -2264,6 +2264,7 @@ export const mockTermValues = (overrides?: Partial<TermValues>, _relationshipsTo
         liquidationCvl: overrides && overrides.hasOwnProperty('liquidationCvl') ? overrides.liquidationCvl! : faker.number.int({ min: 85, max: 88 }),
         marginCallCvl: overrides && overrides.hasOwnProperty('marginCallCvl') ? overrides.marginCallCvl! : faker.number.int({ min: 90, max: 92 }),
         oneTimeFeeRate: overrides && overrides.hasOwnProperty('oneTimeFeeRate') ? overrides.oneTimeFeeRate! : generateMockValue.oneTimeFeeRate(),
+        singleDisbursalAtActivation: overrides && overrides.hasOwnProperty('singleDisbursalAtActivation') ? overrides.singleDisbursalAtActivation! : faker.datatype.boolean(),
     };
 };
 
@@ -2282,6 +2283,7 @@ export const mockTermsInput = (overrides?: Partial<TermsInput>, _relationshipsTo
         obligationLiquidationDurationFromDue: overrides && overrides.hasOwnProperty('obligationLiquidationDurationFromDue') ? overrides.obligationLiquidationDurationFromDue! : relationshipsToOmit.has('DurationInput') ? {} as DurationInput : mockDurationInput({}, relationshipsToOmit),
         obligationOverdueDurationFromDue: overrides && overrides.hasOwnProperty('obligationOverdueDurationFromDue') ? overrides.obligationOverdueDurationFromDue! : relationshipsToOmit.has('DurationInput') ? {} as DurationInput : mockDurationInput({}, relationshipsToOmit),
         oneTimeFeeRate: overrides && overrides.hasOwnProperty('oneTimeFeeRate') ? overrides.oneTimeFeeRate! : faker.lorem.word(),
+        singleDisbursalAtActivation: overrides && overrides.hasOwnProperty('singleDisbursalAtActivation') ? overrides.singleDisbursalAtActivation! : faker.datatype.boolean(),
     };
 };
 

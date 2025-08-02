@@ -2264,6 +2264,7 @@ export type TermValues = {
   liquidationCvl: Scalars['CVLPct']['output'];
   marginCallCvl: Scalars['CVLPct']['output'];
   oneTimeFeeRate: Scalars['OneTimeFeeRatePct']['output'];
+  singleDisbursalAtActivation: Scalars['Boolean']['output'];
 };
 
 export type TermsInput = {
@@ -2278,6 +2279,7 @@ export type TermsInput = {
   obligationLiquidationDurationFromDue: DurationInput;
   obligationOverdueDurationFromDue: DurationInput;
   oneTimeFeeRate: Scalars['OneTimeFeeRatePct']['input'];
+  singleDisbursalAtActivation?: Scalars['Boolean']['input'];
 };
 
 export type TermsTemplate = {
