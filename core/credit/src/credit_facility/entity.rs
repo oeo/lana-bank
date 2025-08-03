@@ -329,7 +329,6 @@ impl CreditFacility {
             .expect("first accrual");
 
         // Create the activation event
-        println!("Activating credit facility: {}", self.id);
 
         let activation = CreditFacilityActivation {
             tx_id,
@@ -1033,8 +1032,12 @@ mod test {
     fn single_disbursal_at_activation_field() {
         // Test with single_disbursal_at_activation = false
         let facility_without_single_disbursal = facility_from(initial_events());
-        assert!(!facility_without_single_disbursal.terms.single_disbursal_at_activation);
-        
+        assert!(
+            !facility_without_single_disbursal
+                .terms
+                .single_disbursal_at_activation
+        );
+
         // Test with single_disbursal_at_activation = true
         let events = vec![CreditFacilityEvent::Initialized {
             id: CreditFacilityId::new(),
@@ -1054,7 +1057,7 @@ mod test {
                 .liquidation_cvl(dec!(105))
                 .margin_call_cvl(dec!(125))
                 .initial_cvl(dec!(140))
-                .single_disbursal_at_activation(true)  // Enable single disbursal
+                .single_disbursal_at_activation(true) // Enable single disbursal
                 .build()
                 .expect("should build a valid term"),
             amount: default_facility(),
@@ -1064,7 +1067,11 @@ mod test {
             audit_info: dummy_audit_info(),
         }];
         let facility_with_single_disbursal = facility_from(events);
-        assert!(facility_with_single_disbursal.terms.single_disbursal_at_activation);
+        assert!(
+            facility_with_single_disbursal
+                .terms
+                .single_disbursal_at_activation
+        );
     }
 
     mod activate {

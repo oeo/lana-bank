@@ -15,7 +15,8 @@ SERVER_PID_FILE="${LANA_HOME}/server-pid"
 LOG_FILE=".e2e-logs"
 
 server_cmd() {
-  nix run .
+  # Set BFX_LOCAL_PRICE for testing to avoid external price API calls
+  BFX_LOCAL_PRICE=1 nix run .
 }
 
 wait_for_kratos_user_ready() {
@@ -161,8 +162,10 @@ login_superadmin() {
       -d '{"query":"query{dashboard{activeFacilities}}"}' \
       "${GQL_ADMIN_ENDPOINT}" 2>/dev/null || echo "")
     
+
+    
     # If the query succeeds (no errors in response), token is still valid
-    if [[ -n "$test_result" ]] && ! echo "$test_result" | grep -q '"errors"'; then
+    if [[ -n "$test_result" ]] && ! echo "$test_result" | grep -q '"error\|"errors"'; then
       echo "--- Using cached superadmin token ---"
       return 0
     else
@@ -184,7 +187,14 @@ login_superadmin() {
   code=$(getEmailCode $email)
   variables=$(jq -n --arg email "$email" --arg code "$code" '{ identifier: $email, method: "code", code: $code }' )
   session=$(curl -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "$variables" "http://admin.localhost:4455/self-service/login?flow=$flowId")
+  
   token=$(echo $session | jq -r '.session_token')
+  
+  if [[ "$token" == "null" ]] || [[ -z "$token" ]]; then
+    echo "--- Login failed - no valid token received ---" >&3
+    exit 1
+  fi
+  
   cache_value "superadmin" $token
   echo "--- Superadmin login completed ---"
 }
@@ -193,8 +203,9 @@ exec_admin_graphql() {
   local query_name=$1
   local variables=${2:-"{}"}
 
-  AUTH_HEADER="Authorization: Bearer $(read_value "superadmin")"
-
+  local token=$(read_value "superadmin")
+  AUTH_HEADER="Authorization: Bearer $token"
+  
   if [[ "${BATS_TEST_DIRNAME}" != "" ]]; then
     run_cmd="run"
   else

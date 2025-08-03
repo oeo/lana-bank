@@ -8,8 +8,6 @@ app:
   storage:
     provider: local
     root_folder: ".lana"
-  credit:
-    customer_active_check_enabled: false
   notification:
     email:
       admin_panel_url: "http://admin.localhost:4455"
@@ -19,8 +17,11 @@ app:
       port: 1025
       insecure: true
   customer_sync:
-    customer_status_sync_active: false
-    create_deposit_account_on_customer_create: true
+    auto_create_deposit_account: true
+    customer_status_sync_active: false 
+    create_deposit_account_on_customer_create: true 
+  credit:
+    customer_active_check_enabled: false
   deposit_sync:
     sumsub_export_enabled: false
   accounting_init:

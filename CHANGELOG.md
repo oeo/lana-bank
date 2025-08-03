@@ -1,9 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-
 #### Single Disbursal at Activation Feature
 
 A new configuration option that allows credit facilities to automatically execute a single disbursal for the full facility amount upon activation, effectively turning the facility into a simple bitcoin-backed loan.
@@ -17,6 +13,7 @@ A new configuration option that allows credit facilities to automatically execut
 **Testing:**
 - Added end-to-end BATS test case "credit-facility: single disbursal at activation"
 - Added unit tests for field behavior and defaults
+- Updated GraphQL schema to include new field and validation logic
 
 **Implementation Details:**
 - Follows the existing `structuring_fee` pattern for one-time operations during activation
@@ -25,10 +22,5 @@ A new configuration option that allows credit facilities to automatically execut
   - `core/credit/src/processes/activate_credit_facility/mod.rs` - Activation logic
   - `core/credit/src/lib.rs` - Disbursal validation
   - `lana/admin-server/src/graphql/*` - GraphQL integration
+  - `bats/credit-facility.bats` - Main test case for new feature
 
-### Changed
-
-- Replaced database migration files for entity rollups to include the new field:
-  - `create_core_credit_facility_events_rollup.sql`
-  - `create_core_interest_accrual_cycle_events_rollup.sql`
-  - `create_core_terms_template_events_rollup.sql`

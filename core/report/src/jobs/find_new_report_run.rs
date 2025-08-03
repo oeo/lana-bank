@@ -83,7 +83,11 @@ where
     }
 
     fn retry_on_error_settings() -> RetrySettings {
-        RetrySettings::repeat_indefinitely()
+        RetrySettings {
+            n_attempts: Some(10),
+            n_warn_attempts: Some(3),
+            ..Default::default()
+        }
     }
 }
 
@@ -101,11 +105,7 @@ impl<E> JobRunner for FindNewReportRunJobRunner<E>
 where
     E: OutboxEventMarker<CoreReportEvent> + Send + Sync + 'static,
 {
-    #[tracing::instrument(
-        name = "core_reports.find_new_report_run.run",
-        skip(self, current_job),
-        err
-    )]
+    #[tracing::instrument(name = "core_reports.find_new_report_run.run", skip(self, current_job))]
     async fn run(
         &self,
         mut current_job: CurrentJob,
@@ -114,11 +114,21 @@ where
             .execution_state::<FindNewReportRunJobExecutionState>()?
             .unwrap_or_default();
 
-        let next_runs = self
+        let next_runs = match self
             .airflow
             .reports()
             .list_runs(Some(1), state.run_id)
-            .await?;
+            .await
+        {
+            Ok(runs) => runs,
+            Err(airflow::AirflowError::ApiError) => {
+                tracing::info!("airflow temporarily unavailable, will retry later");
+                return Ok(JobCompletion::RescheduleIn(std::time::Duration::from_secs(
+                    300, // retry in 5 minutes
+                )));
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         for run in next_runs.into_iter() {
             let report_run = match self
@@ -158,8 +168,7 @@ where
         }
 
         Ok(JobCompletion::RescheduleIn(std::time::Duration::from_secs(
-            // 60
-            600_000
+            60, // check for new report runs every minute
         )))
     }
 }

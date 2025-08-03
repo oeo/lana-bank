@@ -158,7 +158,7 @@ ymd() {
       }'
     )
     exec_admin_graphql 'credit-facility-create' "$variables"
-    
+
     address=$(graphql_output '.data.creditFacilityCreate.creditFacility.wallet.address')
     [[ "$address" == "null" ]] || exit 1
 
@@ -400,7 +400,7 @@ ymd() {
         jq -n \
         --arg credit_facility_id "$credit_facility_id" \
         --arg effective "$(naive_now)" \
-        '{ input: { creditFacilityId: $credit_facility_id, collateral: 280000, effective: $effective } }'
+        '{ input: { creditFacilityId: $credit_facility_id, collateral: 50000000, effective: $effective } }'
       )
       exec_admin_graphql 'credit-facility-collateral-update' "$variables"
       retry 60 1 wait_for_active "$credit_facility_id"

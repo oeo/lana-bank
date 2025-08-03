@@ -47,6 +47,8 @@ wait_for_approval() {
   exec_admin_graphql 'customer-create' "$variables"
   customer_id=$(graphql_output .data.customerCreate.customer.customerId)
   [[ "$customer_id" != "null" ]] || exit 1
+
+  exec_admin_graphql 'customer-activate' "$variables"
   
   # Verify customerType in response
   response_customer_type=$(graphql_output .data.customerCreate.customer.customerType)

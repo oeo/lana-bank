@@ -5,12 +5,7 @@ use tracing::instrument;
 use audit::AuditSvc;
 use authz::PermissionCheck;
 use core_price::Price;
-use governance::{
-    ApprovalProcessId, 
-    GovernanceAction, 
-    GovernanceEvent, 
-    GovernanceObject
-};
+use governance::{GovernanceAction, GovernanceEvent, GovernanceObject};
 use outbox::OutboxEventMarker;
 use public_id::PublicIds;
 
@@ -104,7 +99,10 @@ where
                 next_accrual_period,
                 audit_info,
             }) => {
-                let due_date = credit_facility.matures_at.expect("Facility is not active");
+                let due_date = credit_facility.matures_at.expect(&format!(
+                    "Credit facility {} should have matures_at after activation. activated_at: {:?}, is_activated: {}",
+                    credit_facility.id, credit_facility.activated_at, credit_facility.is_activated()
+                ));
                 let overdue_date = credit_facility
                     .terms
                     .obligation_overdue_duration_from_due
@@ -114,8 +112,12 @@ where
                     .obligation_liquidation_duration_from_due
                     .map(|d| d.end_date(due_date));
 
-                if credit_facility.has_structuring_fee() {
+                // Handle single disbursal at activation (NEW FEATURE)
+                if credit_facility.terms.single_disbursal_at_activation {
                     let disbursal_id = DisbursalId::new();
+                    // Use the facility's approval process since this is part of activation
+                    let approval_process_id = credit_facility.approval_process_id;
+
                     let public_id = self
                         .public_ids
                         .create_in_op(
@@ -128,10 +130,8 @@ where
                     let new_disbursal = NewDisbursal::builder()
                         .id(disbursal_id)
                         .credit_facility_id(credit_facility.id)
-                        //.approval_process_id(credit_facility.approval_process_id)
-                        //.approval_process_id(disbursal_id)
-                        .approval_process_id(ApprovalProcessId::new())
-                        .amount(credit_facility.structuring_fee())
+                        .approval_process_id(approval_process_id)
+                        .amount(credit_facility.amount)
                         .account_ids(credit_facility.account_ids)
                         .disbursal_credit_account_id(credit_facility.disbursal_credit_account_id)
                         .due_date(due_date)
@@ -146,9 +146,8 @@ where
                         .create_first_disbursal_in_op(&mut db, new_disbursal, &audit_info)
                         .await?;
                 }
-
-                // Handle single disbursal at activation if configured
-                if credit_facility.terms.single_disbursal_at_activation {
+                // Handle traditional structuring fee (ORIGINAL LOGIC RESTORED)
+                else if credit_facility.has_structuring_fee() {
                     let disbursal_id = DisbursalId::new();
                     let public_id = self
                         .public_ids
@@ -159,15 +158,11 @@ where
                         )
                         .await?;
 
-                    // Get the full available amount for the facility
-                    let disbursal_amount = credit_facility.amount;
-
                     let new_disbursal = NewDisbursal::builder()
                         .id(disbursal_id)
                         .credit_facility_id(credit_facility.id)
-                        //.approval_process_id(disbursal_id)
-                        .approval_process_id(ApprovalProcessId::new())
-                        .amount(disbursal_amount)
+                        .approval_process_id(credit_facility.approval_process_id)
+                        .amount(credit_facility.structuring_fee())
                         .account_ids(credit_facility.account_ids)
                         .disbursal_credit_account_id(credit_facility.disbursal_credit_account_id)
                         .due_date(due_date)

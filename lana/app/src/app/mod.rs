@@ -129,8 +129,14 @@ impl LanaApp {
             &public_ids,
         )
         .await?;
-        let customer_sync =
-            CustomerSync::init(&jobs, &outbox, &customers, &deposits, config.customer_sync).await?;
+        let customer_sync = CustomerSync::init(
+            &jobs,
+            &outbox,
+            &customers,
+            &deposits,
+            config.customer_sync.clone(),
+        )
+        .await?;
 
         let applicants = Applicants::new(&pool, &config.sumsub, &authz, &customers);
 
