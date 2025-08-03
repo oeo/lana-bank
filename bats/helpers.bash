@@ -143,8 +143,34 @@ exec_customer_graphql() {
     "${GQL_APP_ENDPOINT}"
 }
 
+# NOTE: This actually utilizes the JWT cache, the previous version did not.
 login_superadmin() {
   local email="admin@galoy.io"
+
+  # First, check if we already have a cached token
+  if [[ -f "${CACHE_DIR}/superadmin" ]]; then
+    echo "--- Checking cached superadmin token ---"
+    
+    # Test if the cached token is still valid with a simple GraphQL query
+    AUTH_HEADER="Authorization: Bearer $(read_value "superadmin")"
+    
+    local test_result=$(curl -s \
+      -X POST \
+      -H "$AUTH_HEADER" \
+      -H "Content-Type: application/json" \
+      -d '{"query":"query{dashboard{activeFacilities}}"}' \
+      "${GQL_ADMIN_ENDPOINT}" 2>/dev/null || echo "")
+    
+    # If the query succeeds (no errors in response), token is still valid
+    if [[ -n "$test_result" ]] && ! echo "$test_result" | grep -q '"errors"'; then
+      echo "--- Using cached superadmin token ---"
+      return 0
+    else
+      echo "--- Cached token invalid, performing fresh login ---"
+    fi
+  else
+    echo "--- No cached token found, performing fresh login ---"
+  fi
 
   # Wait for Kratos user to be created before attempting login
   echo "--- Waiting for Kratos user to be created ---"
@@ -416,8 +442,153 @@ wait_for_checking_account() {
   )
   exec_admin_graphql 'customer' "$variables"
 
-  echo "checking | $i. $(graphql_output)" >> $RUN_LOG_FILE
+  # Debug: show the actual response
+  echo "Customer query response: $(graphql_output '.')" >&3
+  
   deposit_account_id=$(graphql_output '.data.customer.depositAccount.depositAccountId')
+  echo "Deposit account ID: $deposit_account_id" >&3
 
   [[ "$deposit_account_id" != "null" ]] || exit 1
+}
+
+#
+# BENCHMARKING
+#
+BENCH_STACK=()
+BENCH_DEPTH=0
+
+benchmark_push_stack() {
+  local bench_name="$1"
+  BENCH_STACK+=("$bench_name")
+  BENCH_DEPTH=$((BENCH_DEPTH + 1))
+}
+
+benchmark_pop_stack() {
+  if [[ ${#BENCH_STACK[@]} -gt 0 ]]; then
+    unset 'BENCH_STACK[-1]'
+    BENCH_DEPTH=$((BENCH_DEPTH - 1))
+  fi
+}
+
+benchmark_start() {
+  local bench_name=${1:-"operation"}
+  local service_name=$(echo "$bench_name" | sed 's/_/-/g')
+  
+  echo "$(date +%s%3N)" > "${CACHE_DIR}/bench_${bench_name}_start"
+  
+  benchmark_push_stack "$bench_name"
+}
+
+benchmark_end() {
+  local bench_name=${1:-"operation"}
+  local start_file="${CACHE_DIR}/bench_${bench_name}_start"
+  local service_name=$(echo "$bench_name" | sed 's/_/-/g')
+  
+  benchmark_pop_stack
+  
+  if [[ ! -f "$start_file" ]]; then
+    printf "✗ %s\n" "$service_name"
+    return 1
+  fi
+  
+  local start_time=$(cat "$start_file")
+  local end_time=$(date +%s%3N)
+  local duration=$((end_time - start_time))
+  local duration_secs=$((duration / 1000))
+  
+  # Show minimal completion
+  if [[ $duration -lt 1000 ]]; then
+    printf "✓ %s\n" "$service_name"
+  else
+    printf "✓ %s (%ds)\n" "$service_name" "$duration_secs"
+  fi
+  
+  echo "$duration" > "${CACHE_DIR}/bench_${bench_name}_duration"
+  rm -f "$start_file"
+}
+
+benchmark_start_setup() {
+  local bench_name=${1:-"operation"}
+  local service_name=$(echo "$bench_name" | sed 's/_/-/g')
+  
+  echo "$(date +%s%3N)" > "${CACHE_DIR}/bench_${bench_name}_start"
+  
+  benchmark_push_stack "$bench_name"
+}
+
+benchmark_end_setup() {
+  local bench_name=${1:-"operation"}
+  local start_file="${CACHE_DIR}/bench_${bench_name}_start"
+  local service_name=$(echo "$bench_name" | sed 's/_/-/g')
+  
+  benchmark_pop_stack
+  
+  if [[ ! -f "$start_file" ]]; then
+    printf "✗ %s\n" "$service_name" >&3
+    return 1
+  fi
+  
+  local start_time=$(cat "$start_file")
+  local end_time=$(date +%s%3N)
+  local duration=$((end_time - start_time))
+  local duration_secs=$((duration / 1000))
+  
+  # Show minimal completion
+  if [[ $duration -lt 1000 ]]; then
+    printf "✓ %s\n" "$service_name" >&3
+  else
+    printf "✓ %s (%ds)\n" "$service_name" "$duration_secs" >&3
+  fi
+  
+  echo "$duration" > "${CACHE_DIR}/bench_${bench_name}_duration"
+  rm -f "$start_file"
+}
+
+benchmark_operation_setup() {
+  local bench_name="$1"
+  shift
+  
+  benchmark_start_setup "$bench_name"
+  "$@"
+  benchmark_end_setup "$bench_name"
+}
+
+benchmark_operation() {
+  local bench_name="$1"
+  shift
+  
+  benchmark_start "$bench_name"
+  "$@"
+  local exit_code=$?
+  benchmark_end "$bench_name"
+  
+  return $exit_code
+}
+
+benchmark_get_stats() {
+  echo "=== BENCHMARK STATISTICS ==="
+  for file in "${CACHE_DIR}"/bench_*_duration; do
+    if [[ -f "$file" ]]; then
+      local bench_name=$(basename "$file" | sed 's/bench_//;s/_duration//')
+      local duration=$(cat "$file")
+      printf "%-30s %6dms\n" "$bench_name:" "$duration"
+    fi
+  done
+  echo "=============================="
+}
+
+benchmark_clear() {
+  # Kill any running timer processes
+  for pid_file in "${CACHE_DIR}"/bench_*_timer_pid; do
+    if [[ -f "$pid_file" ]]; then
+      local timer_pid=$(cat "$pid_file")
+      if kill -0 $timer_pid 2>/dev/null; then
+        kill -TERM $timer_pid 2>/dev/null || true
+        wait $timer_pid 2>/dev/null || true
+      fi
+    fi
+  done
+  
+  rm -f "${CACHE_DIR}"/bench_*
+  echo "[BENCH] Cleared all benchmark data"
 }
